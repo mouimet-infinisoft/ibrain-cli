@@ -15,11 +15,15 @@ export const prepareEnvironment = () => {
     "AI_PROVIDER_API_KEY"
   );
   const AI_MODEL = validateEnvVariable(process.env.AI_MODEL, "AI_MODEL");
+  const SUPABASE_URL = validateEnvVariable(process.env.SUPABASE_URL, "SUPABASE_URL");
+  const SUPABASE_KEY = validateEnvVariable(process.env.SUPABASE_KEY, "SUPABASE_KEY");
 
   return {
     SUPABASE_CONNEXION_STRING,
     AI_MODEL,
     AI_PROVIDER_API_KEY,
     AI_PROVIDER_BASE_URL,
+    SUPABASE_URL,
+    SUPABASE_KEY
   };
 };

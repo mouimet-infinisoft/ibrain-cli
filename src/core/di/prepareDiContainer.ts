@@ -1,5 +1,15 @@
-import { inject } from "@brainstack/inject";
-import { createLogger, consoleIntegration, Logger, LogLevel } from "@brainstack/log"; 
+import {
+  inject,
+  createLogger,
+  consoleIntegration,
+  Logger,
+  LogLevel,
+  createConfigManager,
+  createStore,
+  createCRUD,
+  TStore,
+} from "@brainstack/core";
+
 import { prepareEnvironment } from "../initialization/prepareEnvironment";
 import { OpenAIService } from "../../services/ai/OpenAIService";
 import { SupabaseDataService } from "../../services/services/SupabaseDataService";
@@ -11,42 +21,48 @@ import { ProcessorProvider } from "../../providers/processors/ProcessorProvider"
 import { ExitParserService } from "../../services/parsers/ExitParserService";
 import { MicroAppTemplateDataService } from "../../services/microappTemplate/MicroAppTemplateDataService";
 import { MicroAppTemplateParserService } from "../../services/microappTemplate/MicroAppTemplateParserService";
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "../../types";
 
+
+export type MemoryService = ReturnType<typeof createClient<Database>>
 export type DIContainer = ReturnType<typeof inject>;
-
 export const prepareDiContainer = (
   loadedEnv: ReturnType<typeof prepareEnvironment>
 ): DIContainer => {
   const container = inject();
 
-  const dataService = new SupabaseDataService(
+  const logService = createLogger(LogLevel.VERBOSE, [consoleIntegration]);
+  const storeService = createStore();
+  const memoryService = createClient<Database>(
+    loadedEnv.SUPABASE_URL,
+    loadedEnv.SUPABASE_KEY
+  );
+
+  const supaBaseDataService = new SupabaseDataService(
     loadedEnv.SUPABASE_CONNEXION_STRING
   );
-  const microTemplateService = new MicroAppTemplateDataService(
-    "",""
-  );
+  const microTemplateDataService = new MicroAppTemplateDataService("", "");
 
   const aiService = new OpenAIService(
     loadedEnv.AI_PROVIDER_BASE_URL,
     loadedEnv.AI_PROVIDER_API_KEY,
     loadedEnv.AI_MODEL
   );
-  
+
   const userProcessorProvider = new ProcessorProvider([
     new ExitParserService(),
   ]);
   const aiProcessorProvider = new ProcessorProvider([
-    new MicroAppTemplateParserService(microTemplateService),
+    new MicroAppTemplateParserService(microTemplateDataService),
     // new SupabaseParserService(dataService),
     // new UmlDiagramParserService()
   ]);
 
-  const logService = createLogger(LogLevel.VERBOSE, [consoleIntegration]); 
-
   const chatService = new ChatService(
     aiService,
     // dataService,
-    microTemplateService,
+    microTemplateDataService,
     aiProcessorProvider,
     userProcessorProvider,
     logService
@@ -56,7 +72,9 @@ export const prepareDiContainer = (
   // container.register<IDataService>("dataService", dataService);
   container.register<IChatService>("chatService", chatService);
   container.register<Logger>("logService", logService);
+  container.register<TStore>("storeService", storeService);
   // container.register<ProcessorProvider>("aiProcessor", aiProcessorProvider);
+  container.register<MemoryService>("supabaseService", memoryService);
 
   return container;
 };

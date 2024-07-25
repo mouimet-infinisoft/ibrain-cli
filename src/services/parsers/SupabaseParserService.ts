@@ -1,6 +1,7 @@
-import { IParserService } from "../../../parsers/IParserService";
-import { IDataService } from "../../../data/IDataService";
-import { promptUser } from "../../../../utils/promptUser";
+import { promptUser } from "../../utils/promptUser";
+import { IDataService } from "../data/IDataService";
+import { IParserService } from "./IParserService";
+
 
 export class SupabaseParserService implements IParserService {
   constructor(private dataService: IDataService) {}

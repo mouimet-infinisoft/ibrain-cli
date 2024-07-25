@@ -9,21 +9,25 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "deploy": "./deploy.sh"
+    "deploy": "./deploy.sh",
+    "gen-types:local": "npx supabase gen types typescript  --local --schema public > src/types/index.ts"
   },
   "bin": {
     "pipe-chat-cli": "./dist/index.js"
   },
   "dependencies": {
+    "@brainstack/core": "^1.2.144",
     "@brainstack/diagram": "^1.0.19",
     "@brainstack/inject": "^1.2.145",
     "@brainstack/log": "^1.1.153",
+    "@supabase/supabase-js": "^2.44.4",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "figlet": "^1.7.0",
     "openai": "^4.52.2",
     "postgres": "^3.4.4",
-    "readline-sync": "^1.4.10"
+    "readline-sync": "^1.4.10",
+    "remotedev": "^0.2.9"
   },
   "devDependencies": {
     "@types/figlet": "^1.5.8",

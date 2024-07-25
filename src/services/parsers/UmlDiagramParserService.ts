@@ -1,5 +1,5 @@
-import { IParserService } from "../../../parsers/IParserService";
 import { DiagramModule } from "@brainstack/diagram";
+import { IParserService } from "./IParserService";
 
 export class UmlDiagramParserService implements IParserService {
   constructor() {}

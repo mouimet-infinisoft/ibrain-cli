@@ -58,12 +58,12 @@ export class OpenAIService implements IAiService {
     tools: Tools
   ): Promise<string> {
     const messages: Array<ChatCompletionMessageParam> = [
-      { role: "system", content: context },
-      { role: "user", content: message },
       {
         role: "system",
-        content: `You are iBrain One an AI assistant. You will call apprropriate function only if required. Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous. If no tool call required just answer.`,
+        content: `You are iBrain One an AI assistant. You will call apprropriate function only if required. To evaluate if function should be called, you will consider the user last message only. Everything else is out of the scope, like message history for example. Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous. If no tool call required just answer.`,
       },
+      { role: "system", content: context },
+      { role: "user", content: message }
     ];
 
     const response = await this.ai.chat.completions.create({

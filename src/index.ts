@@ -12,7 +12,7 @@ const program = new Command();
 program.version("1.0.0");
 
 // Welcome banner
-console.log(figlet.textSync('IBrain Datamodel Expert', {
+console.log(figlet.textSync('IBrain CLI', {
     font: 'Standard',
     horizontalLayout: 'default',
     verticalLayout: 'default'
