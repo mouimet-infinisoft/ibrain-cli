@@ -1,16 +1,28 @@
 import {
+  ChatCompletionMessage,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
 } from "openai/resources";
 import { IAiService } from "./IAiService";
 import OpenAI from "openai";
 import { Tools } from "./abstract/tool";
+import { Logger } from "@brainstack/log";
+import { TStore } from "@brainstack/core";
+import { CommunicationService } from "../communication/CommunicationService";
+import { iBrainOutput } from "../../utils/iBrainOutput";
 
 export class OpenAIService implements IAiService {
   private ai: OpenAI;
   private model: string;
 
-  constructor(baseURL: string, apiKey: string, model: string) {
+  constructor(
+    private logService: Logger,
+    private storeService: TStore,
+    private communicationService: CommunicationService,
+    baseURL: string,
+    apiKey: string,
+    model: string
+  ) {
     this.ai = new OpenAI({
       apiKey,
       baseURL,
@@ -21,34 +33,48 @@ export class OpenAIService implements IAiService {
   private executeToolCall =
     (tools: Tools) => async (toolCall: ChatCompletionMessageToolCall) => {
       const tool = tools[toolCall.function.name];
-      
+
       if (!tool) {
-        console.error(
-          `No tool found with name: ${String(toolCall.function.name).toLowerCase()}`
+        this.logService.error(
+          `No tool found with name: ${String(
+            toolCall.function.name
+          ).toLowerCase()}`
         );
         return null;
       }
 
       try {
-        // const args = JSON.parse(toolCall.function.arguments);
-        // console.log(
-        //   `Tool Call Function Name: ${String(
-        //     toolCall.function.name
-        //   ).toLowerCase()} with argument`,
-        //   args
-        // );
+        this.logService.verbose(
+          `Tool Call Function Name: ${String(
+            toolCall.function.name
+          ).toLowerCase()} with argument`,
+          toolCall.function.arguments
+        );
+        this.storeService.emit(`event.${toolCall.function.name}.call`, {
+          payload: toolCall.function.arguments,
+        });
         const content = await tool.execute(toolCall.function.arguments);
-        // // const content = await tool.execute(args);
-        // console.log(
-        //   `Tool Call Function Name: ${String(toolCall.function.name).toLowerCase()} with argument`,args, ` Result: `, content
-        // );
+        this.storeService.emit(`event.${toolCall.function.name}.response`, {
+          payload: content,
+        });
+        this.logService.verbose(
+          `Tool Call Function Name: ${String(
+            toolCall.function.name
+          ).toLowerCase()} with argument`,
+          toolCall.function.arguments,
+          ` Result: `,
+          content
+        );
         return {
           content,
           tool_call_id: toolCall.id,
         };
-      } catch (error:any) {
-       console.error(`Error executing tool ${toolCall.function.name}:`, error);
-        return error?.message
+      } catch (error: any) {
+        this.logService.error(
+          `Error executing tool ${toolCall.function.name}:`,
+          error
+        );
+        return error?.message;
       }
     };
 
@@ -57,14 +83,11 @@ export class OpenAIService implements IAiService {
     context: string,
     tools: Tools
   ): Promise<string> {
-    const messages: Array<ChatCompletionMessageParam> = [
-      {
-        role: "system",
-        content: `You are iBrain One an AI assistant. You will call apprropriate function only if required. To evaluate if function should be called, you will consider the user last message only. Everything else is out of the scope, like message history for example. Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous. If no tool call required just answer.`,
-      },
-      { role: "system", content: context },
-      { role: "user", content: message }
-    ];
+    await this.communicationService.addFlowMessage({
+      role: "user",
+      content: message,
+    });
+    const messages = await this.communicationService.getFlowMessages(10);
 
     const response = await this.ai.chat.completions.create({
       model: this.model,
@@ -74,37 +97,61 @@ export class OpenAIService implements IAiService {
       temperature: 0.8,
     });
 
-    // console.log(JSON.stringify(response, null, 2));
+    this.logService.verbose(`ai response: `, JSON.stringify(response, null, 2));
 
-    if (response?.choices?.[0]?.message?.tool_calls) {
-      const toolCallsPromises = response.choices[0].message.tool_calls.map(
-         this.executeToolCall(tools)
-      );
-      const toolResponses = await Promise.all(toolCallsPromises);
-
-      const validResponses = toolResponses.filter(
-        (response:any) => response !== null
-      );
-
-      validResponses.forEach((args:any) => {
-        if (!args) return;
-        const { content, tool_call_id } = args;
-        messages.push({
-          role: "tool",
-          tool_call_id,
-          content,
-        });
+    // no tool answer direct
+    if (!response?.choices?.[0]?.message?.tool_calls) {
+      const r = response?.choices?.[0]?.message?.content?.trim() ?? "";
+      await this.communicationService.addFlowMessage({
+        role: "assistant",
+        content: r,
       });
 
-      const finalResponse = await this.ai.chat.completions.create({
-        model: this.model,
-        messages,
-      });
-
-      return finalResponse?.choices?.[0]?.message?.content?.trim() ?? "";
+      return r;
     }
 
-    return response?.choices?.[0]?.message?.content?.trim() ?? "";
+    iBrainOutput("Ok, give me a moment. On it!");
+
+    const toolCallsPromises = response.choices[0].message.tool_calls.map(
+      this.executeToolCall(tools)
+    );
+    const toolResponses = await Promise.all(toolCallsPromises);
+
+    const validResponses = toolResponses.filter(
+      (response: any) => response !== null
+    );
+
+    const toolFinalFlow: ChatCompletionMessageParam[] = [];
+    validResponses.forEach((args: any) => {
+      if (!args) return;
+      const { content, tool_call_id } = args;
+      toolFinalFlow.push({
+        role: "tool",
+        tool_call_id,
+        content,
+      });
+    });
+
+    await this.communicationService.batchFlowMessage(toolFinalFlow);
+    const latestMessage: ChatCompletionMessage[] =
+      await this.communicationService.getFlowMessages(10);
+
+    try {
+      const finalResponse = await this.ai.chat.completions.create({
+        model: this.model,
+        messages: latestMessage,
+      });
+      const r = finalResponse?.choices?.[0]?.message?.content?.trim() ?? "";
+      await this.communicationService.addFlowMessage({
+        role: "assistant",
+        content: r,
+      });
+
+      return r;
+    } catch (error: any) {
+      this.logService.error(error);
+    }
+    return "";
   }
 
   async ask(message: string, context: string): Promise<string> {

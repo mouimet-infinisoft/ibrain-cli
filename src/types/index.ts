@@ -11,25 +11,19 @@ export type Database = {
     Tables: {
       chat_history: {
         Row: {
-          id: number
-          message: string | null
-          response: string | null
+          flow: Json | null
+          id: string
           timestamp: string | null
-          user_id: string | null
         }
         Insert: {
-          id?: number
-          message?: string | null
-          response?: string | null
+          flow?: Json | null
+          id?: string
           timestamp?: string | null
-          user_id?: string | null
         }
         Update: {
-          id?: number
-          message?: string | null
-          response?: string | null
+          flow?: Json | null
+          id?: string
           timestamp?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }
