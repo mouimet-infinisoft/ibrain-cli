@@ -39,4 +39,18 @@ export class ChatService implements IChatService {
       }
     }
   }
+
+  public async message(message: string): Promise<string> {
+    try {
+      await this.userProcessorProvider.process(message);
+
+      const aiResponse = await this.aiService.askWithTool(message, "The base director is /home/nitr0gen/public/Packages/@braintools/ibrain-cli/src", tool);
+      const response = await this.aiPostProcessorProvider.process(aiResponse);
+
+     return response;
+    } catch (err: any) {
+      this.logService.error(err);
+      throw new Error(err);
+    }
+  }
 }

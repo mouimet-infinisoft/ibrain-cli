@@ -36,7 +36,7 @@ export const prepareDiContainer = (
 ): DIContainer => {
   const container = inject();
 
-  const logService = createLogger(LogLevel.ERROR, [consoleIntegration]);
+  const logService = createLogger(LogLevel.VERBOSE, [consoleIntegration]);
   const storeService = createStore();
   const memoryService = createClient<Database>(
     loadedEnv.SUPABASE_URL,

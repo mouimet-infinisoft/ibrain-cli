@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { config } from "dotenv";
 import { initialization } from "./core/initialization/initialization";
 import { chatCommand } from "./commands/chatCommand";
+import { chatAPICommand } from "./commands/chatAPICommand";
 import figlet from 'figlet';
 
 config();
@@ -24,6 +25,16 @@ program
   .action(async () => {
     try {
       await chatCommand();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+program
+  .command("api")
+  .description("API Chat with iBrain")
+  .action(async () => {
+    try {
+      await chatAPICommand();
     } catch (e) {
       console.error(e);
     }

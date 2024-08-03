@@ -167,11 +167,11 @@ const toolImplementations = {
   listDirectoryContents: (args: string) => {
     try {
       const { path } = JSON.parse(args);
-      const entries = fs.readdirSync(path, { withFileTypes: true });
+      const entries = fs.readdirSync(path, { withFileTypes: true});
       const directories = entries
-        .filter((entry) => entry.isDirectory())
+        .filter((entry) => entry.isDirectory()||entry.isFile())
         .map((dir) => dir.name);
-      return directories.join("\n");
+      return `I have list the directory content at ${path} successfully. Here is the content: ${directories.join("\n")}`;
     } catch (error: any) {
       return `I have not beein able to list folders. I get that error message: ${error?.message}`;
     }
